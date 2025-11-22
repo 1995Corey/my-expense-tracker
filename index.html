@@ -19,6 +19,12 @@
             -webkit-appearance: none;
             appearance: none;
         }
+
+        /* 【關鍵 CSS】當輸入框被點擊(Focus)時，讓提示文字(Placeholder)變透明 */
+        input:focus::placeholder {
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800 h-[100dvh] w-full overflow-hidden flex flex-col">
@@ -297,3 +303,4 @@
 </script>
 </body>
 </html>
+
