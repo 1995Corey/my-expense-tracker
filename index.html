@@ -167,7 +167,7 @@
             
             const form = ref({
                 type: 'expense',
-                amount: '',
+                amount: '', // 預設為空字串，確保 placeholder="0" 會顯示
                 date: new Date().toISOString().slice(0, 10),
                 category: '飲食',
                 note: ''
@@ -303,4 +303,3 @@
 </script>
 </body>
 </html>
-
