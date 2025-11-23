@@ -234,10 +234,31 @@
             let chartInstance = null;
 
             // --- Lifecycle ---
-            onMounted(() => {
-                const savedData = localStorage.getItem('my_expense_tracker_data_v2');
-                if (savedData) {
-                    transactions.value = JSON.parse(savedData);
+onMounted(() => {
+                // 1. 先試著找「新版」資料
+                const savedDataV2 = localStorage.getItem('my_expense_tracker_data_v2');
+                
+                if (savedDataV2) {
+                    transactions.value = JSON.parse(savedDataV2);
+                } else {
+                    // 2. 如果沒有新版資料，就去找「舊版」資料
+                    const savedDataOld = localStorage.getItem('my_expense_tracker_data');
+                    if (savedDataOld) {
+                        try {
+                            const oldTransactions = JSON.parse(savedDataOld);
+                            
+                            // 3. 資料升級：因為舊資料沒有「帳戶」欄位，我們先預設全部都是「現金」
+                            transactions.value = oldTransactions.map(t => ({
+                                ...t,
+                                fromAccount: 'cash', // 補上預設帳戶
+                                toAccount: ''
+                            }));
+                            
+                            alert('成功找回舊記錄！已自動升級資料格式 (預設為現金帳戶)。');
+                        } catch (e) {
+                            console.error('舊資料讀取錯誤', e);
+                        }
+                    }
                 }
             });
 
@@ -436,3 +457,4 @@
 </script>
 </body>
 </html>
+
