@@ -31,10 +31,10 @@
 <div id="app" class="flex flex-col h-full w-full max-w-md mx-auto bg-white shadow-2xl relative">
 
     <!-- Header 修正：按鈕改為 bottom 定位，確保在手機上對齊 -->
-    <header class="bg-blue-600 text-white p-4 text-center font-bold shadow-md z-30 shrink-0 safe-area-pt pt-12 relative flex justify-center items-center">
+    <header class="bg-blue-600 text-white p-4 text-center font-bold shadow-md z-30 shrink-0 safe-area-pt pt-16 relative flex justify-center items-center">
         <span>{{ pageTitle }}</span>
         <!-- 修正後的按鈕：移除 safe-area-pt 與 top 定位，改用 bottom-3 -->
-        <button @click="showSettings = true" class="absolute right-4 bottom-3 p-2 active:opacity-70">
+        <button @click="showSettings = true" class="absolute right-4 bottom-2 p-2 active:opacity-70">
             <i class="fa-solid fa-gear"></i>
         </button>
     </header>
@@ -528,4 +528,5 @@
 </script>
 </body>
 </html>
+
 
