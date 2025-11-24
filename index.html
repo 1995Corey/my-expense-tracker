@@ -1,693 +1,431 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
-  <head>
-    <meta charset="UTF-8" />
+<head>
+    <meta charset="UTF-8">
     <!-- Viewport 設定：確保在 iPhone 上滿版且不會誤觸縮放 -->
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
-    />
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
     <!-- PWA 核心設定 -->
     <title>隨手記帳 Pro</title>
-    <link rel="manifest" href="manifest.json" />
-
+    <link rel="manifest" href="manifest.json">
+    
     <!-- iOS 專屬 PWA 設定 -->
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <!-- 隱藏 Safari 網址列 -->
-    <meta
-      name="apple-mobile-web-app-status-bar-style"
-      content="black-translucent"
-    />
-    <!-- 狀態列透明融合 -->
-    <meta name="apple-mobile-web-app-title" content="記帳Pro" />
-
-    <!-- App 圖示 (請準備一張 icon.png 放在同目錄，建議 512x512 或 192x192) -->
-    <link rel="apple-touch-icon" href="icon.png" />
-
+    <meta name="apple-mobile-web-app-capable" content="yes"> <!-- 隱藏 Safari 網址列 -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"> <!-- 讓狀態列融入背景 -->
+    <meta name="apple-mobile-web-app-title" content="記帳Pro">
+    
+    <!-- App 圖示 -->
+    <link rel="apple-touch-icon" href="icon.png"> 
+    
     <!-- 資源載入 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-    />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <style>
-      body {
-        -webkit-tap-highlight-color: transparent;
-      }
-      .no-scrollbar::-webkit-scrollbar {
-        display: none;
-      }
-      .no-scrollbar {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
-      }
-
-      input[type="date"],
-      input[type="month"],
-      input[type="number"],
-      input[type="text"],
-      select {
-        -webkit-appearance: none;
-        appearance: none;
-      }
-      input:focus::placeholder {
-        opacity: 0;
-        transition: opacity 0.2s ease;
-      }
-
-      /* iPhone 安全區域設定 (瀏海與底部橫條) */
-      .safe-area-pt {
-        padding-top: env(safe-area-inset-top);
-      }
-      .safe-area-pb {
-        padding-bottom: env(safe-area-inset-bottom);
-      }
+        body { -webkit-tap-highlight-color: transparent; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        input[type="date"], input[type="month"], input[type="number"], input[type="text"], select {
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        input:focus::placeholder { opacity: 0; transition: opacity 0.2s ease; }
+        
+        /* iPhone 安全區域設定 */
+        /* 上方瀏海區塊 */
+        .safe-area-pt { padding-top: env(safe-area-inset-top); }
+        /* 下方 Home Indicator 區塊 */
+        .safe-area-pb { padding-bottom: env(safe-area-inset-bottom); }
     </style>
-  </head>
-  <body
-    class="bg-gray-100 text-gray-800 h-[100dvh] w-full overflow-hidden flex flex-col"
-  >
-    <div
-      id="app"
-      class="flex flex-col h-full w-full max-w-md mx-auto bg-white shadow-2xl relative"
-    >
-      <!-- Header 增加 safe-area-pt 以避開瀏海 -->
-      <header
-        class="bg-blue-600 text-white p-4 text-center font-bold shadow-md z-30 shrink-0 safe-area-pt pt-4"
-      >
+</head>
+<body class="bg-gray-100 text-gray-800 h-screen w-full overflow-hidden flex flex-col">
+
+<div id="app" class="flex flex-col h-full w-full max-w-md mx-auto bg-white shadow-2xl relative">
+
+    <!-- Header: 增加 safe-area-pt 避免被狀態列遮擋 -->
+    <header class="bg-blue-600 text-white p-4 text-center font-bold shadow-md z-30 shrink-0 safe-area-pt pt-4">
         {{ pageTitle }}
-      </header>
+    </header>
 
-      <main
-        class="flex-1 overflow-y-auto p-4 pb-28 no-scrollbar w-full bg-gray-50"
-      >
+    <!-- Main: 內容區域 -->
+    <main class="flex-1 overflow-y-auto p-4 no-scrollbar w-full bg-gray-50">
+        
         <!-- 頁面：記帳 (Add) -->
-        <div v-if="currentTab === 'add'" class="space-y-5 fade-in">
-          <div class="flex bg-gray-200 p-1 rounded-lg shrink-0">
-            <button
-              @click="setFormType('expense')"
-              :class="{'bg-white text-red-500 shadow': form.type === 'expense'}"
-              class="flex-1 py-2 rounded-md transition-all font-bold text-sm"
-            >
-              支出
+        <div v-if="currentTab === 'add'" class="space-y-5 fade-in pb-6">
+            <div class="flex bg-gray-200 p-1 rounded-lg shrink-0">
+                <button @click="setFormType('expense')" :class="{'bg-white text-red-500 shadow': form.type === 'expense'}" class="flex-1 py-2 rounded-md transition-all font-bold text-sm">支出</button>
+                <button @click="setFormType('income')" :class="{'bg-white text-green-500 shadow': form.type === 'income'}" class="flex-1 py-2 rounded-md transition-all font-bold text-sm">收入</button>
+                <button @click="setFormType('transfer')" :class="{'bg-white text-purple-500 shadow': form.type === 'transfer'}" class="flex-1 py-2 rounded-md transition-all font-bold text-sm">轉帳</button>
+            </div>
+
+            <div class="text-center py-2">
+                <label class="block text-xs text-gray-500 mb-1">金額</label>
+                <input type="number" v-model.number="form.amount" placeholder="0" class="text-5xl font-bold text-center w-full outline-none bg-transparent border-b-2 border-blue-200 focus:border-blue-500 py-2 transition-colors input-mode-decimal">
+            </div>
+
+            <div class="space-y-3 w-full">
+                <div class="w-full">
+                    <label class="block text-xs text-gray-500 mb-1">日期</label>
+                    <input type="date" v-model="form.date" class="w-full min-w-0 p-3 bg-white rounded-lg border border-gray-200 outline-none focus:border-blue-500 text-sm shadow-sm">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3" v-if="form.type === 'transfer'">
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">轉出帳戶</label>
+                        <select v-model="form.fromAccount" class="w-full p-3 bg-white rounded-lg border border-gray-200 outline-none text-sm shadow-sm">
+                            <option v-for="acc in accounts" :key="acc.id" :value="acc.id">{{ acc.name }}</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-500 mb-1">轉入帳戶</label>
+                        <select v-model="form.toAccount" class="w-full p-3 bg-white rounded-lg border border-gray-200 outline-none text-sm shadow-sm">
+                            <option v-for="acc in accounts" :key="acc.id" :value="acc.id">{{ acc.name }}</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div v-else>
+                    <label class="block text-xs text-gray-500 mb-1">支付/入帳帳戶</label>
+                    <select v-model="form.fromAccount" class="w-full p-3 bg-white rounded-lg border border-gray-200 outline-none text-sm shadow-sm">
+                        <option v-for="acc in accounts" :key="acc.id" :value="acc.id">{{ acc.name }}</option>
+                    </select>
+                </div>
+
+                <div class="w-full">
+                    <label class="block text-xs text-gray-500 mb-1">備註 (選填)</label>
+                    <input type="text" v-model="form.note" placeholder="例如：午餐、薪水..." class="w-full min-w-0 p-3 bg-white rounded-lg border border-gray-200 outline-none focus:border-blue-500 text-sm shadow-sm">
+                </div>
+            </div>
+
+            <div v-if="form.type !== 'transfer'">
+                <label class="block text-xs text-gray-500 mb-2">選擇分類</label>
+                <div class="grid grid-cols-4 gap-2">
+                    <div v-for="cat in currentCategories" :key="cat" 
+                         @click="form.category = cat"
+                         :class="getCategoryClass(cat)"
+                         class="p-2 text-center text-xs rounded-lg border cursor-pointer select-none transition-all truncate shadow-sm">
+                        {{ cat }}
+                    </div>
+                </div>
+            </div>
+
+            <button @click="addTransaction" :disabled="!isValidForm" 
+                    class="w-full py-3.5 bg-blue-600 text-white rounded-xl font-bold shadow-lg hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-4 mb-6">
+                儲存紀錄
             </button>
-            <button
-              @click="setFormType('income')"
-              :class="{'bg-white text-green-500 shadow': form.type === 'income'}"
-              class="flex-1 py-2 rounded-md transition-all font-bold text-sm"
-            >
-              收入
-            </button>
-            <button
-              @click="setFormType('transfer')"
-              :class="{'bg-white text-purple-500 shadow': form.type === 'transfer'}"
-              class="flex-1 py-2 rounded-md transition-all font-bold text-sm"
-            >
-              轉帳
-            </button>
-          </div>
-
-          <div class="text-center py-2">
-            <label class="block text-xs text-gray-500 mb-1">金額</label>
-            <input
-              type="number"
-              v-model.number="form.amount"
-              placeholder="0"
-              class="text-5xl font-bold text-center w-full outline-none bg-transparent border-b-2 border-blue-200 focus:border-blue-500 py-2 transition-colors input-mode-decimal"
-            />
-          </div>
-
-          <div class="space-y-3 w-full">
-            <div class="w-full">
-              <label class="block text-xs text-gray-500 mb-1">日期</label>
-              <input
-                type="date"
-                v-model="form.date"
-                class="w-full min-w-0 p-3 bg-white rounded-lg border border-gray-200 outline-none focus:border-blue-500 text-sm shadow-sm"
-              />
-            </div>
-
-            <div class="grid grid-cols-2 gap-3" v-if="form.type === 'transfer'">
-              <div>
-                <label class="block text-xs text-gray-500 mb-1">轉出帳戶</label>
-                <select
-                  v-model="form.fromAccount"
-                  class="w-full p-3 bg-white rounded-lg border border-gray-200 outline-none text-sm shadow-sm"
-                >
-                  <option v-for="acc in accounts" :key="acc.id" :value="acc.id">
-                    {{ acc.name }}
-                  </option>
-                </select>
-              </div>
-              <div>
-                <label class="block text-xs text-gray-500 mb-1">轉入帳戶</label>
-                <select
-                  v-model="form.toAccount"
-                  class="w-full p-3 bg-white rounded-lg border border-gray-200 outline-none text-sm shadow-sm"
-                >
-                  <option v-for="acc in accounts" :key="acc.id" :value="acc.id">
-                    {{ acc.name }}
-                  </option>
-                </select>
-              </div>
-            </div>
-
-            <div v-else>
-              <label class="block text-xs text-gray-500 mb-1"
-                >支付/入帳帳戶</label
-              >
-              <select
-                v-model="form.fromAccount"
-                class="w-full p-3 bg-white rounded-lg border border-gray-200 outline-none text-sm shadow-sm"
-              >
-                <option v-for="acc in accounts" :key="acc.id" :value="acc.id">
-                  {{ acc.name }}
-                </option>
-              </select>
-            </div>
-
-            <div class="w-full">
-              <label class="block text-xs text-gray-500 mb-1"
-                >備註 (選填)</label
-              >
-              <input
-                type="text"
-                v-model="form.note"
-                placeholder="例如：午餐、薪水..."
-                class="w-full min-w-0 p-3 bg-white rounded-lg border border-gray-200 outline-none focus:border-blue-500 text-sm shadow-sm"
-              />
-            </div>
-          </div>
-
-          <div v-if="form.type !== 'transfer'">
-            <label class="block text-xs text-gray-500 mb-2">選擇分類</label>
-            <div class="grid grid-cols-4 gap-2">
-              <div
-                v-for="cat in currentCategories"
-                :key="cat"
-                @click="form.category = cat"
-                :class="getCategoryClass(cat)"
-                class="p-2 text-center text-xs rounded-lg border cursor-pointer select-none transition-all truncate shadow-sm"
-              >
-                {{ cat }}
-              </div>
-            </div>
-          </div>
-
-          <button
-            @click="addTransaction"
-            :disabled="!isValidForm"
-            class="w-full py-3.5 bg-blue-600 text-white rounded-xl font-bold shadow-lg hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-4 mb-6"
-          >
-            儲存紀錄
-          </button>
         </div>
 
         <!-- 頁面：明細 (List) -->
-        <div v-if="currentTab === 'list'" class="space-y-4">
-          <div
-            class="flex gap-2 sticky top-0 bg-gray-50 z-20 py-2 border-b border-gray-200"
-          >
-            <input
-              type="month"
-              v-model="filterDate"
-              class="w-1/3 min-w-0 p-2 border rounded-lg text-xs bg-white shadow-sm"
-            />
-            <input
-              type="text"
-              v-model="searchKeyword"
-              placeholder="搜尋..."
-              class="flex-1 min-w-0 p-2 border rounded-lg text-xs outline-none focus:border-blue-500 bg-white shadow-sm"
-            />
-          </div>
-
-          <div
-            v-if="filteredTransactions.length === 0"
-            class="text-center text-gray-400 mt-10"
-          >
-            <i class="fa-solid fa-receipt text-4xl mb-2"></i>
-            <p class="text-sm">沒有相關紀錄</p>
-          </div>
-
-          <div
-            v-for="tx in filteredTransactions"
-            :key="tx.id"
-            class="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center"
-          >
-            <div class="flex items-center gap-3 overflow-hidden">
-              <div
-                :class="getIconBgColor(tx.type)"
-                class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-white"
-              >
-                <i :class="getIconClass(tx)" class="text-sm"></i>
-              </div>
-              <div class="min-w-0">
-                <div class="font-bold text-gray-700 text-sm truncate">
-                  <span v-if="tx.type === 'transfer'"
-                    >轉帳: {{ getAccountName(tx.toAccount) }}</span
-                  >
-                  <span v-else>{{ tx.category }}</span>
-                </div>
-                <div class="text-xs text-gray-400 truncate">
-                  {{ tx.date.slice(5) }} ·
-                  <span v-if="tx.type === 'transfer'"
-                    >{{ getAccountName(tx.fromAccount) }}
-                    <i class="fa-solid fa-arrow-right text-[10px]"></i
-                  ></span>
-                  <span v-else>{{ getAccountName(tx.fromAccount) }}</span>
-                  <span v-if="tx.note"> · {{ tx.note }}</span>
-                </div>
-              </div>
+        <div v-if="currentTab === 'list'" class="space-y-4 pb-6">
+            <div class="flex gap-2 sticky top-0 bg-gray-50 z-20 py-2 border-b border-gray-200">
+                <input type="month" v-model="filterDate" class="w-1/3 min-w-0 p-2 border rounded-lg text-xs bg-white shadow-sm">
+                <input type="text" v-model="searchKeyword" placeholder="搜尋..." class="flex-1 min-w-0 p-2 border rounded-lg text-xs outline-none focus:border-blue-500 bg-white shadow-sm">
             </div>
-            <div class="flex items-center gap-2 shrink-0">
-              <div :class="getAmountColor(tx.type)" class="font-bold text-base">
-                {{ getAmountPrefix(tx.type) }}{{ tx.amount }}
-              </div>
-              <button
-                @click="deleteTransaction(tx.id)"
-                class="text-gray-300 hover:text-red-500 p-1"
-              >
-                <i class="fa-solid fa-trash text-xs"></i>
-              </button>
+
+            <div v-if="filteredTransactions.length === 0" class="text-center text-gray-400 mt-10">
+                <i class="fa-solid fa-receipt text-4xl mb-2"></i>
+                <p class="text-sm">沒有相關紀錄</p>
             </div>
-          </div>
+
+            <div v-for="tx in filteredTransactions" :key="tx.id" class="bg-white p-3 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
+                <div class="flex items-center gap-3 overflow-hidden">
+                    <div :class="getIconBgColor(tx.type)" class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-white">
+                        <i :class="getIconClass(tx)" class="text-sm"></i>
+                    </div>
+                    <div class="min-w-0">
+                        <div class="font-bold text-gray-700 text-sm truncate">
+                            <span v-if="tx.type === 'transfer'">轉帳: {{ getAccountName(tx.toAccount) }}</span>
+                            <span v-else>{{ tx.category }}</span>
+                        </div>
+                        <div class="text-xs text-gray-400 truncate">
+                            {{ tx.date.slice(5) }} · 
+                            <span v-if="tx.type === 'transfer'">{{ getAccountName(tx.fromAccount) }} <i class="fa-solid fa-arrow-right text-[10px]"></i></span>
+                            <span v-else>{{ getAccountName(tx.fromAccount) }}</span>
+                            <span v-if="tx.note"> · {{ tx.note }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                    <div :class="getAmountColor(tx.type)" class="font-bold text-base">
+                        {{ getAmountPrefix(tx.type) }}{{ tx.amount }}
+                    </div>
+                    <button @click="deleteTransaction(tx.id)" class="text-gray-300 hover:text-red-500 p-1">
+                        <i class="fa-solid fa-trash text-xs"></i>
+                    </button>
+                </div>
+            </div>
         </div>
 
         <!-- 頁面：分析 (Stats) -->
-        <div v-if="currentTab === 'stats'" class="space-y-6">
-          <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
-            <h3 class="font-bold text-gray-700 mb-3 text-sm border-b pb-2">
-              💰 目前資產分佈
-            </h3>
-            <div class="grid grid-cols-2 gap-3">
-              <div
-                v-for="acc in accountBalances"
-                :key="acc.id"
-                class="bg-gray-50 p-2 rounded-lg"
-              >
-                <div class="text-xs text-gray-500">{{ acc.name }}</div>
-                <div
-                  :class="acc.balance < 0 ? 'text-red-500' : 'text-blue-600'"
-                  class="font-bold truncate"
-                >
-                  $ {{ acc.balance }}
+        <div v-if="currentTab === 'stats'" class="space-y-6 pb-6">
+            
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                <h3 class="font-bold text-gray-700 mb-3 text-sm border-b pb-2">💰 目前資產分佈</h3>
+                <div class="grid grid-cols-2 gap-3">
+                    <div v-for="acc in accountBalances" :key="acc.id" class="bg-gray-50 p-2 rounded-lg">
+                        <div class="text-xs text-gray-500">{{ acc.name }}</div>
+                        <div :class="acc.balance < 0 ? 'text-red-500' : 'text-blue-600'" class="font-bold truncate">
+                            $ {{ acc.balance }}
+                        </div>
+                    </div>
+                    <div class="col-span-2 bg-blue-50 p-2 rounded-lg flex justify-between items-center">
+                        <div class="text-xs text-gray-500 font-bold">淨資產總額</div>
+                        <div class="font-bold text-blue-700 text-lg">$ {{ totalNetWorth }}</div>
+                    </div>
                 </div>
-              </div>
-              <div
-                class="col-span-2 bg-blue-50 p-2 rounded-lg flex justify-between items-center"
-              >
-                <div class="text-xs text-gray-500 font-bold">淨資產總額</div>
-                <div class="font-bold text-blue-700 text-lg">
-                  $ {{ totalNetWorth }}
-                </div>
-              </div>
             </div>
-          </div>
 
-          <div class="space-y-3">
-            <h3 class="font-bold text-gray-700 text-sm px-1">
-              📅 本月收支 ({{ filterDate }})
-            </h3>
-            <div class="grid grid-cols-2 gap-3">
-              <div class="bg-green-50 p-3 rounded-xl border border-green-100">
-                <div class="text-xs text-gray-500">收入</div>
-                <div class="text-lg font-bold text-green-600 truncate">
-                  +{{ monthlyStats.income }}
+            <div class="space-y-3">
+                <h3 class="font-bold text-gray-700 text-sm px-1">📅 本月收支 ({{ filterDate }})</h3>
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-green-50 p-3 rounded-xl border border-green-100">
+                        <div class="text-xs text-gray-500">收入</div>
+                        <div class="text-lg font-bold text-green-600 truncate">+{{ monthlyStats.income }}</div>
+                    </div>
+                    <div class="bg-red-50 p-3 rounded-xl border border-red-100">
+                        <div class="text-xs text-gray-500">支出</div>
+                        <div class="text-lg font-bold text-red-600 truncate">-{{ monthlyStats.expense }}</div>
+                    </div>
                 </div>
-              </div>
-              <div class="bg-red-50 p-3 rounded-xl border border-red-100">
-                <div class="text-xs text-gray-500">支出</div>
-                <div class="text-lg font-bold text-red-600 truncate">
-                  -{{ monthlyStats.expense }}
+                <div class="bg-gray-100 p-2 rounded-lg text-center text-xs text-gray-500">
+                    本月淨流量：<span :class="monthlyStats.net >= 0 ? 'text-blue-600' : 'text-red-600'" class="font-bold text-sm">{{ monthlyStats.net }}</span>
                 </div>
-              </div>
             </div>
-            <div
-              class="bg-gray-100 p-2 rounded-lg text-center text-xs text-gray-500"
-            >
-              本月淨流量：<span
-                :class="monthlyStats.net >= 0 ? 'text-blue-600' : 'text-red-600'"
-                class="font-bold text-sm"
-                >{{ monthlyStats.net }}</span
-              >
-            </div>
-          </div>
 
-          <div
-            class="bg-white p-4 rounded-xl shadow-sm border border-gray-100"
-            v-show="monthlyStats.expense > 0"
-          >
-            <h3 class="font-bold text-gray-700 mb-2 text-center text-sm">
-              支出分類佔比
-            </h3>
-            <div class="relative h-56 w-full">
-              <canvas id="expenseChart"></canvas>
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100" v-show="monthlyStats.expense > 0">
+                <h3 class="font-bold text-gray-700 mb-2 text-center text-sm">支出分類佔比</h3>
+                <div class="relative h-56 w-full">
+                    <canvas id="expenseChart"></canvas>
+                </div>
             </div>
-          </div>
         </div>
-      </main>
+    </main>
 
-      <!-- 底部導航 -->
-      <nav
-        class="bg-white border-t border-gray-200 flex justify-around items-center py-2 pb-6 safe-area-pb z-30 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]"
-      >
-        <button
-          @click="currentTab = 'add'"
-          :class="currentTab === 'add' ? 'text-blue-600 scale-110' : 'text-gray-400'"
-          class="flex flex-col items-center w-1/3 transition-all p-1"
-        >
-          <i class="fa-solid fa-pen-to-square text-xl mb-1"></i>
-          <span class="text-[10px] font-medium">記帳</span>
+    <!-- 底部導航：Fixed 定位，確保在畫面最下方 -->
+    <!-- 移除 safe-area-pb 以外的 padding，讓背景色填滿底部安全區 -->
+    <nav class="bg-white border-t border-gray-200 flex justify-around items-center py-2 safe-area-pb z-30 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] w-full">
+        <button @click="currentTab = 'add'" :class="currentTab === 'add' ? 'text-blue-600 scale-110' : 'text-gray-400'" class="flex flex-col items-center w-1/3 transition-all p-1">
+            <i class="fa-solid fa-pen-to-square text-xl mb-1"></i>
+            <span class="text-[10px] font-medium">記帳</span>
         </button>
-        <button
-          @click="currentTab = 'list'"
-          :class="currentTab === 'list' ? 'text-blue-600 scale-110' : 'text-gray-400'"
-          class="flex flex-col items-center w-1/3 transition-all p-1"
-        >
-          <i class="fa-solid fa-list text-xl mb-1"></i>
-          <span class="text-[10px] font-medium">明細</span>
+        <button @click="currentTab = 'list'" :class="currentTab === 'list' ? 'text-blue-600 scale-110' : 'text-gray-400'" class="flex flex-col items-center w-1/3 transition-all p-1">
+            <i class="fa-solid fa-list text-xl mb-1"></i>
+            <span class="text-[10px] font-medium">明細</span>
         </button>
-        <button
-          @click="currentTab = 'stats'"
-          :class="currentTab === 'stats' ? 'text-blue-600 scale-110' : 'text-gray-400'"
-          class="flex flex-col items-center w-1/3 transition-all p-1"
-        >
-          <i class="fa-solid fa-chart-pie text-xl mb-1"></i>
-          <span class="text-[10px] font-medium">分析</span>
+        <button @click="currentTab = 'stats'" :class="currentTab === 'stats' ? 'text-blue-600 scale-110' : 'text-gray-400'" class="flex flex-col items-center w-1/3 transition-all p-1">
+            <i class="fa-solid fa-chart-pie text-xl mb-1"></i>
+            <span class="text-[10px] font-medium">分析</span>
         </button>
-      </nav>
-    </div>
+    </nav>
 
-    <script>
-      // PWA Service Worker 註冊
-      if ("serviceWorker" in navigator) {
-        window.addEventListener("load", () => {
-          navigator.serviceWorker
-            .register("sw.js")
-            .then((reg) => console.log("SW registered!", reg))
-            .catch((err) => console.log("SW registration failed", err));
+</div>
+
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('sw.js')
+                .then(reg => console.log('SW registered!', reg))
+                .catch(err => console.log('SW registration failed', err));
         });
-      }
+    }
 
-      const { createApp, ref, computed, watch, onMounted, nextTick } = Vue;
+    const { createApp, ref, computed, watch, onMounted, nextTick } = Vue;
 
-      createApp({
+    createApp({
         setup() {
-          const currentTab = ref("add");
-          const transactions = ref([]);
-          const searchKeyword = ref("");
-          const filterDate = ref(new Date().toISOString().slice(0, 7));
+            const currentTab = ref('add');
+            const transactions = ref([]);
+            const searchKeyword = ref('');
+            const filterDate = ref(new Date().toISOString().slice(0, 7)); 
+            
+            const accounts = ref([
+                { id: 'cash', name: '現金' },
+                { id: 'bank', name: '銀行帳戶' },
+                { id: 'credit_card', name: '信用卡' },
+                { id: 'stock', name: '股票交割戶' }
+            ]);
 
-          const accounts = ref([
-            { id: "cash", name: "現金" },
-            { id: "bank", name: "銀行帳戶" },
-            { id: "credit_card", name: "信用卡" },
-            { id: "stock", name: "股票交割戶" },
-          ]);
+            const form = ref({
+                type: 'expense',
+                amount: '',
+                date: new Date().toISOString().slice(0, 10),
+                category: '飲食',
+                note: '',
+                fromAccount: 'cash',
+                toAccount: 'bank'
+            });
 
-          const form = ref({
-            type: "expense",
-            amount: "",
-            date: new Date().toISOString().slice(0, 10),
-            category: "飲食",
-            note: "",
-            fromAccount: "cash",
-            toAccount: "bank",
-          });
+            const expenseCategories = ['飲食', '交通', '娛樂', '購物', '居住', '醫療', '教育', '其他'];
+            const incomeCategories = ['薪水', '獎金', '投資', '兼職', '其他'];
+            let chartInstance = null;
 
-          const expenseCategories = [
-            "飲食",
-            "交通",
-            "娛樂",
-            "購物",
-            "居住",
-            "醫療",
-            "教育",
-            "其他",
-          ];
-          const incomeCategories = ["薪水", "獎金", "投資", "兼職", "其他"];
-          let chartInstance = null;
-
-          onMounted(() => {
-            // 資料救援與讀取邏輯
-            const savedDataV2 = localStorage.getItem(
-              "my_expense_tracker_data_v2"
-            );
-            if (savedDataV2) {
-              transactions.value = JSON.parse(savedDataV2);
-            } else {
-              const savedDataOld = localStorage.getItem(
-                "my_expense_tracker_data"
-              );
-              if (savedDataOld) {
+            onMounted(() => {
+                // 資料載入邏輯修正：優先檢查 V2 且不為空，否則檢查舊版
+                const savedDataV2 = localStorage.getItem('my_expense_tracker_data_v2');
+                const savedDataOld = localStorage.getItem('my_expense_tracker_data');
+                
+                let v2Data = [];
                 try {
-                  const oldTransactions = JSON.parse(savedDataOld);
-                  transactions.value = oldTransactions.map((t) => ({
-                    ...t,
-                    fromAccount: "cash",
-                    toAccount: "",
-                  }));
-                } catch (e) {
-                  console.error(e);
+                    v2Data = savedDataV2 ? JSON.parse(savedDataV2) : [];
+                } catch(e) {}
+
+                // 如果 V2 有資料，就用 V2
+                if (v2Data.length > 0) {
+                    transactions.value = v2Data;
+                } 
+                // 如果 V2 是空的 (或不存在)，但舊版有資料，就用舊版
+                else if (savedDataOld) {
+                    try {
+                        const oldTransactions = JSON.parse(savedDataOld);
+                        if (oldTransactions.length > 0) {
+                            transactions.value = oldTransactions.map(t => ({
+                                ...t, fromAccount: 'cash', toAccount: ''
+                            }));
+                            console.log('已從舊版資料庫恢復並升級資料');
+                        }
+                    } catch (e) { console.error(e); }
                 }
-              }
-            }
-          });
-
-          watch(
-            transactions,
-            (newVal) => {
-              localStorage.setItem(
-                "my_expense_tracker_data_v2",
-                JSON.stringify(newVal)
-              );
-            },
-            { deep: true }
-          );
-
-          watch([currentTab, filterDate], async () => {
-            if (currentTab.value === "stats") {
-              await nextTick();
-              renderChart();
-            }
-          });
-
-          const currentCategories = computed(() =>
-            form.value.type === "income" ? incomeCategories : expenseCategories
-          );
-
-          const isValidForm = computed(() => {
-            const basic =
-              form.value.amount > 0 &&
-              form.value.date &&
-              form.value.fromAccount;
-            if (form.value.type === "transfer")
-              return (
-                basic &&
-                form.value.toAccount &&
-                form.value.fromAccount !== form.value.toAccount
-              );
-            return basic && form.value.category;
-          });
-
-          const pageTitle = computed(
-            () =>
-              ({ add: "新增記帳", list: "交易明細", stats: "資產分析" }[
-                currentTab.value
-              ])
-          );
-
-          const filteredTransactions = computed(() => {
-            return transactions.value
-              .filter((t) => {
-                const matchDate = t.date.startsWith(filterDate.value);
-                const matchSearch =
-                  (t.note && t.note.includes(searchKeyword.value)) ||
-                  (t.category && t.category.includes(searchKeyword.value));
-                return matchDate && matchSearch;
-              })
-              .sort(
-                (a, b) => new Date(b.date) - new Date(a.date) || b.id - a.id
-              );
-          });
-
-          const monthlyStats = computed(() => {
-            let income = 0,
-              expense = 0;
-            filteredTransactions.value.forEach((t) => {
-              if (t.type === "income") income += t.amount;
-              if (t.type === "expense") expense += t.amount;
             });
-            return { income, expense, net: income - expense };
-          });
 
-          const accountBalances = computed(() => {
-            const bals = accounts.value.map((acc) => ({ ...acc, balance: 0 }));
-            transactions.value.forEach((t) => {
-              const fromAcc = bals.find((a) => a.id === t.fromAccount);
-              const toAcc = bals.find((a) => a.id === t.toAccount);
+            watch(transactions, (newVal) => {
+                localStorage.setItem('my_expense_tracker_data_v2', JSON.stringify(newVal));
+            }, { deep: true });
 
-              if (t.type === "expense" && fromAcc) fromAcc.balance -= t.amount;
-              else if (t.type === "income" && fromAcc)
-                fromAcc.balance += t.amount;
-              else if (t.type === "transfer") {
-                if (fromAcc) fromAcc.balance -= t.amount;
-                if (toAcc) toAcc.balance += t.amount;
-              }
+            watch([currentTab, filterDate], async () => {
+                if (currentTab.value === 'stats') {
+                    await nextTick();
+                    renderChart();
+                }
             });
-            return bals;
-          });
 
-          const totalNetWorth = computed(() =>
-            accountBalances.value.reduce((sum, acc) => sum + acc.balance, 0)
-          );
+            const currentCategories = computed(() => form.value.type === 'income' ? incomeCategories : expenseCategories);
 
-          const setFormType = (type) => {
-            form.value.type = type;
-            if (type === "income") form.value.category = incomeCategories[0];
-            else if (type === "expense")
-              form.value.category = expenseCategories[0];
-          };
+            const isValidForm = computed(() => {
+                const basic = form.value.amount > 0 && form.value.date && form.value.fromAccount;
+                if (form.value.type === 'transfer') return basic && form.value.toAccount && (form.value.fromAccount !== form.value.toAccount);
+                return basic && form.value.category;
+            });
 
-          const addTransaction = () => {
-            transactions.value.unshift({ id: Date.now(), ...form.value });
-            form.value.amount = "";
-            form.value.note = "";
-          };
+            const pageTitle = computed(() => ({ add: '新增記帳', list: '交易明細', stats: '資產分析' }[currentTab.value]));
 
-          const deleteTransaction = (id) => {
-            if (confirm("確定刪除此筆紀錄？"))
-              transactions.value = transactions.value.filter(
-                (t) => t.id !== id
-              );
-          };
+            const filteredTransactions = computed(() => {
+                return transactions.value.filter(t => {
+                    const matchDate = t.date.startsWith(filterDate.value);
+                    const matchSearch = (t.note && t.note.includes(searchKeyword.value)) || 
+                                      (t.category && t.category.includes(searchKeyword.value));
+                    return matchDate && matchSearch;
+                }).sort((a, b) => new Date(b.date) - new Date(a.date) || b.id - a.id);
+            });
 
-          const getCategoryClass = (cat) => {
-            const isSelected = form.value.category === cat;
-            return form.value.type === "income"
-              ? isSelected
-                ? "bg-green-100 border-green-500 text-green-700"
-                : "bg-white border-gray-200"
-              : isSelected
-              ? "bg-red-100 border-red-500 text-red-700"
-              : "bg-white border-gray-200";
-          };
+            const monthlyStats = computed(() => {
+                let income = 0, expense = 0;
+                filteredTransactions.value.forEach(t => {
+                    if (t.type === 'income') income += t.amount;
+                    if (t.type === 'expense') expense += t.amount;
+                });
+                return { income, expense, net: income - expense };
+            });
 
-          const getIconBgColor = (type) =>
-            type === "expense"
-              ? "bg-red-400"
-              : type === "income"
-              ? "bg-green-400"
-              : "bg-purple-400";
-          const getAmountColor = (type) =>
-            type === "expense"
-              ? "text-red-500"
-              : type === "income"
-              ? "text-green-500"
-              : "text-purple-500";
-          const getAmountPrefix = (type) =>
-            type === "expense" ? "-" : type === "income" ? "+" : "";
+            const accountBalances = computed(() => {
+                const bals = accounts.value.map(acc => ({ ...acc, balance: 0 }));
+                transactions.value.forEach(t => {
+                    const fromAcc = bals.find(a => a.id === t.fromAccount);
+                    const toAcc = bals.find(a => a.id === t.toAccount);
 
-          const getIconClass = (tx) => {
-            if (tx.type === "transfer") return "fa-solid fa-right-left";
-            const map = {
-              飲食: "fa-utensils",
-              交通: "fa-bus",
-              娛樂: "fa-gamepad",
-              購物: "fa-bag-shopping",
-              居住: "fa-house",
-              醫療: "fa-briefcase-medical",
-              教育: "fa-book",
-              薪水: "fa-sack-dollar",
-              獎金: "fa-star",
-              投資: "fa-chart-line",
-              兼職: "fa-clock",
-              其他: "fa-circle-question",
+                    if (t.type === 'expense' && fromAcc) fromAcc.balance -= t.amount;
+                    else if (t.type === 'income' && fromAcc) fromAcc.balance += t.amount;
+                    else if (t.type === 'transfer') {
+                        if(fromAcc) fromAcc.balance -= t.amount;
+                        if(toAcc) toAcc.balance += t.amount;
+                    }
+                });
+                return bals;
+            });
+
+            const totalNetWorth = computed(() => accountBalances.value.reduce((sum, acc) => sum + acc.balance, 0));
+
+            const setFormType = (type) => {
+                form.value.type = type;
+                if(type === 'income') form.value.category = incomeCategories[0];
+                else if(type === 'expense') form.value.category = expenseCategories[0];
             };
-            return `fa-solid ${map[tx.category] || "fa-tag"}`;
-          };
 
-          const getAccountName = (id) =>
-            accounts.value.find((a) => a.id === id)?.name || id;
+            const addTransaction = () => {
+                transactions.value.unshift({ id: Date.now(), ...form.value });
+                form.value.amount = ''; form.value.note = '';
+            };
 
-          const renderChart = () => {
-            const ctx = document.getElementById("expenseChart");
-            if (!ctx) return;
-            if (chartInstance) chartInstance.destroy();
+            const deleteTransaction = (id) => {
+                if(confirm('確定刪除此筆紀錄？')) transactions.value = transactions.value.filter(t => t.id !== id);
+            };
 
-            const catStats = {};
-            filteredTransactions.value.forEach((t) => {
-              if (t.type === "expense")
-                catStats[t.category] = (catStats[t.category] || 0) + t.amount;
-            });
-            const labels = Object.keys(catStats);
-            if (labels.length === 0) return;
+            const getCategoryClass = (cat) => {
+                const isSelected = form.value.category === cat;
+                return form.value.type === 'income' 
+                    ? (isSelected ? 'bg-green-100 border-green-500 text-green-700' : 'bg-white border-gray-200')
+                    : (isSelected ? 'bg-red-100 border-red-500 text-red-700' : 'bg-white border-gray-200');
+            };
 
-            chartInstance = new Chart(ctx, {
-              type: "doughnut",
-              data: {
-                labels: labels,
-                datasets: [
-                  {
-                    data: Object.values(catStats),
-                    backgroundColor: [
-                      "#ef4444",
-                      "#f97316",
-                      "#f59e0b",
-                      "#84cc16",
-                      "#06b6d4",
-                      "#6366f1",
-                      "#d946ef",
-                      "#64748b",
-                    ],
-                    borderWidth: 1,
-                  },
-                ],
-              },
-              options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                  legend: {
-                    position: "right",
-                    labels: { boxWidth: 12, font: { size: 11 } },
-                  },
-                },
-                layout: { padding: 10 },
-              },
-            });
-          };
+            const getIconBgColor = (type) => type === 'expense' ? 'bg-red-400' : (type === 'income' ? 'bg-green-400' : 'bg-purple-400');
+            const getAmountColor = (type) => type === 'expense' ? 'text-red-500' : (type === 'income' ? 'text-green-500' : 'text-purple-500');
+            const getAmountPrefix = (type) => type === 'expense' ? '-' : (type === 'income' ? '+' : '');
+            
+            const getIconClass = (tx) => {
+                if (tx.type === 'transfer') return 'fa-solid fa-right-left';
+                const map = {
+                    '飲食': 'fa-utensils', '交通': 'fa-bus', '娛樂': 'fa-gamepad',
+                    '購物': 'fa-bag-shopping', '居住': 'fa-house', '醫療': 'fa-briefcase-medical',
+                    '教育': 'fa-book', '薪水': 'fa-sack-dollar', '獎金': 'fa-star', 
+                    '投資': 'fa-chart-line', '兼職': 'fa-clock', '其他': 'fa-circle-question'
+                };
+                return `fa-solid ${map[tx.category] || 'fa-tag'}`;
+            };
+            
+            const getAccountName = (id) => accounts.value.find(a => a.id === id)?.name || id;
 
-          return {
-            currentTab,
-            transactions,
-            form,
-            accounts,
-            searchKeyword,
-            filterDate,
-            pageTitle,
-            isValidForm,
-            filteredTransactions,
-            monthlyStats,
-            accountBalances,
-            totalNetWorth,
-            currentCategories,
-            setFormType,
-            addTransaction,
-            deleteTransaction,
-            getCategoryClass,
-            getIconBgColor,
-            getAmountColor,
-            getAmountPrefix,
-            getIconClass,
-            getAccountName,
-          };
-        },
-      }).mount("#app");
-    </script>
-  </body>
+            const renderChart = () => {
+                const ctx = document.getElementById('expenseChart');
+                if (!ctx) return;
+                if (chartInstance) chartInstance.destroy();
+
+                const catStats = {};
+                filteredTransactions.value.forEach(t => {
+                    if (t.type === 'expense') catStats[t.category] = (catStats[t.category] || 0) + t.amount;
+                });
+                const labels = Object.keys(catStats);
+                if (labels.length === 0) return;
+
+                chartInstance = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: Object.values(catStats),
+                            backgroundColor: ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#06b6d4', '#6366f1', '#d946ef', '#64748b'],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: false,
+                        plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } } },
+                        layout: { padding: 10 }
+                    }
+                });
+            };
+
+            return {
+                currentTab, transactions, form, accounts, 
+                searchKeyword, filterDate, pageTitle,
+                isValidForm, filteredTransactions, monthlyStats, 
+                accountBalances, totalNetWorth, currentCategories,
+                setFormType, addTransaction, deleteTransaction, 
+                getCategoryClass, getIconBgColor, getAmountColor, getAmountPrefix, getIconClass, getAccountName
+            };
+        }
+    }).mount('#app');
+</script>
+</body>
 </html>
