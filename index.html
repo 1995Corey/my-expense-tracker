@@ -2,59 +2,91 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <!-- Viewport 設定：確保在 iPhone 上滿版且不會誤觸縮放 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    
-    <!-- PWA 核心設定 -->
     <title>隨手記帳 Pro</title>
     <link rel="manifest" href="manifest.json">
-    
-    <!-- iOS 專屬 PWA 設定 -->
-    <meta name="apple-mobile-web-app-capable" content="yes"> <!-- 隱藏 Safari 網址列 -->
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"> <!-- 讓狀態列融入背景 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="記帳Pro">
-    
-    <!-- App 圖示 -->
     <link rel="apple-touch-icon" href="icon.png"> 
-    
-    <!-- 資源載入 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
     <style>
         body { -webkit-tap-highlight-color: transparent; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        
-        input[type="date"], input[type="month"], input[type="number"], input[type="text"], select {
-            -webkit-appearance: none;
-            appearance: none;
-        }
+        input, select { -webkit-appearance: none; appearance: none; }
         input:focus::placeholder { opacity: 0; transition: opacity 0.2s ease; }
-        
-        /* iPhone 安全區域設定 */
-        /* 上方瀏海區塊 */
         .safe-area-pt { padding-top: env(safe-area-inset-top); }
-        /* 下方 Home Indicator 區塊 */
         .safe-area-pb { padding-bottom: env(safe-area-inset-bottom); }
+        /* 模態窗過場動畫 */
+        .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
+        .fade-enter-from, .fade-leave-to { opacity: 0; }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-800 h-screen w-full overflow-hidden flex flex-col">
 
 <div id="app" class="flex flex-col h-full w-full max-w-md mx-auto bg-white shadow-2xl relative">
 
-    <!-- Header: 增加 safe-area-pt 避免被狀態列遮擋 -->
-    <header class="bg-blue-600 text-white p-4 text-center font-bold shadow-md z-30 shrink-0 safe-area-pt pt-4">
-        {{ pageTitle }}
+    <!-- Header -->
+    <header class="bg-blue-600 text-white p-4 text-center font-bold shadow-md z-30 shrink-0 safe-area-pt pt-4 relative flex justify-center items-center">
+        <span>{{ pageTitle }}</span>
+        <!-- 新增：設定/資料按鈕 -->
+        <button @click="showSettings = true" class="absolute right-4 top-1/2 translate-y-1/2 safe-area-pt pt-4 mt-[-6px] p-2 active:opacity-70">
+            <i class="fa-solid fa-gear"></i>
+        </button>
     </header>
 
-    <!-- Main: 內容區域 -->
+    <!-- Settings Modal (資料管理視窗) -->
+    <transition name="fade">
+        <div v-if="showSettings" class="absolute inset-0 z-50 bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm">
+            <div class="bg-white rounded-2xl w-full max-w-sm p-5 shadow-2xl space-y-4">
+                <div class="flex justify-between items-center border-b pb-3">
+                    <h3 class="font-bold text-lg text-gray-700">⚙️ 資料管理</h3>
+                    <button @click="showSettings = false" class="text-gray-400 hover:text-gray-600 px-2">
+                        <i class="fa-solid fa-xmark text-xl"></i>
+                    </button>
+                </div>
+                
+                <div class="space-y-3">
+                    <p class="text-xs text-gray-500 bg-yellow-50 p-2 rounded border border-yellow-100">
+                        <i class="fa-solid fa-triangle-exclamation mr-1 text-yellow-500"></i>
+                        注意：Safari 網頁版與桌面 App 版的資料是不互通的。請使用匯出/匯入功能來轉移資料。
+                    </p>
+
+                    <button @click="exportData" class="w-full py-3 bg-blue-50 text-blue-600 rounded-xl font-bold border border-blue-100 flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                        <i class="fa-solid fa-copy"></i> 複製/匯出所有資料
+                    </button>
+
+                    <button @click="toggleImport" class="w-full py-3 bg-green-50 text-green-600 rounded-xl font-bold border border-green-100 flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                        <i class="fa-solid fa-paste"></i> 貼上/匯入資料
+                    </button>
+
+                    <!-- 如果偵測到舊版資料存在，才顯示這個按鈕 -->
+                    <button v-if="hasLegacyData" @click="forceRescueLegacy" class="w-full py-3 bg-gray-100 text-gray-600 rounded-xl font-bold border border-gray-200 flex items-center justify-center gap-2 active:scale-95 transition-transform">
+                        <i class="fa-solid fa-life-ring text-red-400"></i> 強制救援舊版資料
+                    </button>
+
+                    <!-- 匯入輸入框區域 -->
+                    <div v-if="showImportArea" class="space-y-2 fade-in">
+                        <textarea v-model="importJson" placeholder="請在此貼上資料代碼..." class="w-full h-24 p-2 text-xs border rounded-lg bg-gray-50 focus:border-blue-500 outline-none resize-none"></textarea>
+                        <button @click="confirmImport" class="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-bold">確認匯入</button>
+                    </div>
+                </div>
+
+                <div class="text-center text-[10px] text-gray-400 mt-4">
+                    目前版本: V2.1 (PWA Ready)
+                </div>
+            </div>
+        </div>
+    </transition>
+
+    <!-- Main Content -->
     <main class="flex-1 overflow-y-auto p-4 no-scrollbar w-full bg-gray-50">
-        
         <!-- 頁面：記帳 (Add) -->
-        <div v-if="currentTab === 'add'" class="space-y-5 fade-in pb-6">
+        <div v-if="currentTab === 'add'" class="space-y-5 pb-6">
             <div class="flex bg-gray-200 p-1 rounded-lg shrink-0">
                 <button @click="setFormType('expense')" :class="{'bg-white text-red-500 shadow': form.type === 'expense'}" class="flex-1 py-2 rounded-md transition-all font-bold text-sm">支出</button>
                 <button @click="setFormType('income')" :class="{'bg-white text-green-500 shadow': form.type === 'income'}" class="flex-1 py-2 rounded-md transition-all font-bold text-sm">收入</button>
@@ -161,7 +193,6 @@
 
         <!-- 頁面：分析 (Stats) -->
         <div v-if="currentTab === 'stats'" class="space-y-6 pb-6">
-            
             <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                 <h3 class="font-bold text-gray-700 mb-3 text-sm border-b pb-2">💰 目前資產分佈</h3>
                 <div class="grid grid-cols-2 gap-3">
@@ -204,8 +235,7 @@
         </div>
     </main>
 
-    <!-- 底部導航：Fixed 定位，確保在畫面最下方 -->
-    <!-- 移除 safe-area-pb 以外的 padding，讓背景色填滿底部安全區 -->
+    <!-- 底部導航 -->
     <nav class="bg-white border-t border-gray-200 flex justify-around items-center py-2 safe-area-pb z-30 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] w-full">
         <button @click="currentTab = 'add'" :class="currentTab === 'add' ? 'text-blue-600 scale-110' : 'text-gray-400'" class="flex flex-col items-center w-1/3 transition-all p-1">
             <i class="fa-solid fa-pen-to-square text-xl mb-1"></i>
@@ -226,9 +256,7 @@
 <script>
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('sw.js')
-                .then(reg => console.log('SW registered!', reg))
-                .catch(err => console.log('SW registration failed', err));
+            navigator.serviceWorker.register('sw.js').catch(err => console.log('SW fail', err));
         });
     }
 
@@ -239,7 +267,13 @@
             const currentTab = ref('add');
             const transactions = ref([]);
             const searchKeyword = ref('');
-            const filterDate = ref(new Date().toISOString().slice(0, 7)); 
+            const filterDate = ref(new Date().toISOString().slice(0, 7));
+            
+            // Settings UI State
+            const showSettings = ref(false);
+            const showImportArea = ref(false);
+            const importJson = ref('');
+            const hasLegacyData = ref(false);
             
             const accounts = ref([
                 { id: 'cash', name: '現金' },
@@ -262,33 +296,104 @@
             const incomeCategories = ['薪水', '獎金', '投資', '兼職', '其他'];
             let chartInstance = null;
 
+            // --- 資料載入與救援邏輯 ---
             onMounted(() => {
-                // 資料載入邏輯修正：優先檢查 V2 且不為空，否則檢查舊版
                 const savedDataV2 = localStorage.getItem('my_expense_tracker_data_v2');
                 const savedDataOld = localStorage.getItem('my_expense_tracker_data');
-                
-                let v2Data = [];
-                try {
-                    v2Data = savedDataV2 ? JSON.parse(savedDataV2) : [];
-                } catch(e) {}
 
-                // 如果 V2 有資料，就用 V2
-                if (v2Data.length > 0) {
-                    transactions.value = v2Data;
-                } 
-                // 如果 V2 是空的 (或不存在)，但舊版有資料，就用舊版
-                else if (savedDataOld) {
+                // 檢查是否有舊版資料 (用於顯示「強制救援」按鈕)
+                if (savedDataOld) {
+                    hasLegacyData.value = true;
+                }
+
+                if (savedDataV2) {
                     try {
-                        const oldTransactions = JSON.parse(savedDataOld);
-                        if (oldTransactions.length > 0) {
-                            transactions.value = oldTransactions.map(t => ({
-                                ...t, fromAccount: 'cash', toAccount: ''
-                            }));
-                            console.log('已從舊版資料庫恢復並升級資料');
+                        const parsed = JSON.parse(savedDataV2);
+                        // 即使是空陣列也視為有效資料 (代表使用者已開始用新版)
+                        transactions.value = parsed;
+                        
+                        // 如果新版是完全空的，且有舊版，嘗試自動救援一次
+                        if (parsed.length === 0 && savedDataOld) {
+                            forceRescueLegacy();
                         }
-                    } catch (e) { console.error(e); }
+                    } catch(e) { console.error('Data corrupted', e); }
+                } else {
+                    // 如果連 V2 檔案都沒有，直接救援舊版
+                    if (savedDataOld) {
+                        forceRescueLegacy();
+                    }
                 }
             });
+
+            // --- Settings Functions ---
+            const exportData = () => {
+                const dataStr = JSON.stringify(transactions.value);
+                // 嘗試寫入剪貼簿
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(dataStr).then(() => {
+                        alert('✅ 資料已複製！\n請開啟 App 版，並使用「貼上/匯入資料」功能。');
+                    }).catch(() => {
+                        prompt('請手動全選並複製以下代碼：', dataStr);
+                    });
+                } else {
+                    prompt('請手動全選並複製以下代碼：', dataStr);
+                }
+            };
+
+            const toggleImport = () => {
+                showImportArea.value = !showImportArea.value;
+            };
+
+            const confirmImport = () => {
+                try {
+                    const parsed = JSON.parse(importJson.value);
+                    if (Array.isArray(parsed)) {
+                        if(confirm(`確定匯入 ${parsed.length} 筆資料？\n這將覆蓋目前的紀錄。`)) {
+                            transactions.value = parsed;
+                            importJson.value = '';
+                            showImportArea.value = false;
+                            showSettings.value = false;
+                            alert('✅ 資料匯入成功！');
+                        }
+                    } else {
+                        alert('❌ 資料格式錯誤');
+                    }
+                } catch (e) {
+                    alert('❌ 無法解析資料，請確認複製內容是否正確。');
+                }
+            };
+
+            const forceRescueLegacy = () => {
+                const savedDataOld = localStorage.getItem('my_expense_tracker_data');
+                if (savedDataOld) {
+                    try {
+                        const oldTransactions = JSON.parse(savedDataOld);
+                        // 升級舊資料結構
+                        const upgraded = oldTransactions.map(t => ({
+                            ...t, 
+                            // 確保有新欄位，避免 bug
+                            fromAccount: t.fromAccount || 'cash', 
+                            toAccount: t.toAccount || ''
+                        }));
+                        
+                        // 合併還是覆蓋？這裡選擇合併，避免刪掉使用者在新版剛記的幾筆
+                        // 使用 Map 以 ID 去重
+                        const mergedMap = new Map();
+                        transactions.value.forEach(t => mergedMap.set(t.id, t));
+                        upgraded.forEach(t => mergedMap.set(t.id, t));
+                        
+                        transactions.value = Array.from(mergedMap.values())
+                            .sort((a, b) => new Date(b.date) - new Date(a.date) || b.id - a.id);
+                            
+                        alert(`✅ 成功找回 ${upgraded.length} 筆舊資料！`);
+                        showSettings.value = false;
+                    } catch (e) {
+                        alert('舊資料讀取失敗');
+                    }
+                } else {
+                    alert('在此瀏覽器中找不到舊版資料。');
+                }
+            };
 
             watch(transactions, (newVal) => {
                 localStorage.setItem('my_expense_tracker_data_v2', JSON.stringify(newVal));
@@ -421,7 +526,9 @@
                 searchKeyword, filterDate, pageTitle,
                 isValidForm, filteredTransactions, monthlyStats, 
                 accountBalances, totalNetWorth, currentCategories,
+                showSettings, showImportArea, importJson, hasLegacyData,
                 setFormType, addTransaction, deleteTransaction, 
+                exportData, toggleImport, confirmImport, forceRescueLegacy,
                 getCategoryClass, getIconBgColor, getAmountColor, getAmountPrefix, getIconClass, getAccountName
             };
         }
